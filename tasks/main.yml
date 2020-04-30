@@ -1,0 +1,104 @@
+---
+# tasks file for fcarrus.rhvm_replace_certs
+
+- name: gather facts
+  setup:
+    filter: ansible_fqdn
+
+- name: copy ca to trust store
+  copy:
+    dest: "{{ trust_store_dir }}"
+    src: "{{ ca_file }}"
+    force: true
+    remote_src: true
+  register: trust_store
+
+- name: run update-ca-trust
+  command: update-ca-trust
+  when: trust_store is changed
+
+- name: get old CA stat
+  stat:
+    path: "{{ apache_ca_file }}"
+  register: apache_ca_file_stat
+
+- name: remove old CA
+  file:
+    path: "{{ apache_ca_file }}"
+    state: absent
+  when: apache_ca_file_stat.stat.islnk
+
+- name: copy new CA
+  copy:
+    dest: "{{ apache_ca_file }}"
+    src: "{{ ca_file }}"
+    force: true
+    remote_src: true
+  notify: restart httpd
+
+- name: copy new Key
+  copy:
+    dest: "{{ apache_key_file }}"
+    src: "{{ key_file }}"
+    force: true
+    remote_src: true
+    group: ovirt
+    mode: '640'
+    owner: root
+    backup: true
+  notify: restart httpd
+
+- name: copy new Cert
+  copy:
+    dest: "{{ apache_cert_file }}"
+    src: "{{ cert_file }}"
+    force: true
+    remote_src: true
+    group: ovirt
+    mode: '644'
+    owner: root
+    backup: true
+  notify: restart httpd
+
+- name: create custom trustcore config
+  copy:
+    dest: "{{ custom_truststore_conf }}"
+    content: |
+      ENGINE_HTTPS_PKI_TRUST_STORE="/etc/pki/java/cacerts"
+      ENGINE_HTTPS_PKI_TRUST_STORE_PASSWORD=""
+  notify: restart ovirt engine
+
+- name: create new websocket proxy config file
+  copy:
+    dest: "{{ custom_websocket_proxy_new }}"
+    src: "{{ custom_websocket_proxy_orig }}"
+    force: no
+    remote_src: true
+  notify: restart websocket proxy
+
+- name: add directives to new websocket proxy config file
+  lineinfile:
+    path: "{{ custom_websocket_proxy_new }}"
+    state: present
+    insertafter: EOF
+    regexp: "{{ item.regex }}"
+    line: "{{ item.line }}"
+  loop:
+  - regex: "^SSL_CERTIFICATE="
+    line: "SSL_CERTIFICATE={{ apache_cert_file }}"
+  - regex: "^SSL_KEY="
+    line: "SSL_KEY={{ apache_key_file }}"
+  notify: restart websocket proxy
+
+- name: create engine backup directory
+  file:
+    path: "{{ engine_backup_dir }}"
+    state: directory
+
+- name: create engine backup script
+  copy:
+    dest: "{{ engine_backup_script }}"
+    content: |
+      BACKUP_PATHS="${BACKUP_PATHS} /etc/ovirt-engine-backup"
+      cp -f {{ apache_ca_file }} {{ trust_store_dir }}
+      update-ca-trust

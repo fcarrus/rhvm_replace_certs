@@ -1,0 +1,14 @@
+---
+# defaults file for fcarrus.rhvm_replace_certs
+ca_file: /etc/pki/tls/certs/ipa-ca.crt
+cert_file: "/etc/pki/tls/certs/{{ ansible_fqdn }}.crt"
+key_file: "/etc/pki/tls/private/{{ ansible_fqdn }}.key"
+trust_store_dir: "/etc/pki/ca-trust/source/anchors"
+apache_ca_file: "/etc/pki/ovirt-engine/apache-ca.pem"
+apache_cert_file: "/etc/pki/ovirt-engine/certs/apache.cer"
+apache_key_file: "/etc/pki/ovirt-engine/keys/apache.key.nopass"
+custom_truststore_conf: "/etc/ovirt-engine/engine.conf.d/99-custom-truststore.conf"
+custom_websocket_proxy_orig: "/etc/ovirt-engine/ovirt-websocket-proxy.conf.d/10-setup.conf"
+custom_websocket_proxy_new: "/etc/ovirt-engine/ovirt-websocket-proxy.conf.d/99-setup.conf"
+engine_backup_dir: "/etc/ovirt-engine-backup/engine-backup-config.d"
+engine_backup_script: "{{ engine_backup_dir }}/update-system-wide-pki.sh"

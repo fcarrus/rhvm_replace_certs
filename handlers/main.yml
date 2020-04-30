@@ -1,0 +1,16 @@
+---
+# handlers file for fcarrus.rhvm_replace_certs
+- name: restart httpd
+  systemd: 
+    name: httpd
+    state: restarted
+
+- name: restart ovirt engine
+  systemd: 
+    name: ovirt-engine
+    state: restarted
+
+- name: restart websocket proxy
+  systemd: 
+    name: ovirt-websocket-proxy
+    state: restarted
